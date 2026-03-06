@@ -1,50 +1,65 @@
+import { state } from './core/state.js';
+import { engine } from './core/engine.js';
 import { Router } from './app/router.js';
+import { ResultView } from './ui/result.js';
 import { LandingView } from './ui/landing.js';
 import { CourseInfoView } from './ui/courseInfo.js';
 import { ExamView } from './ui/exam.js';
-
-import { engine } from './core/engine.js';
 import { Calculator } from './ui/components/calculator.js';
 
-// ... existing imports ...
+// EXPOSE TO WINDOW (Fixes ReferenceErrors)
+window.state = state;
+window.ResultView = ResultView;
 
-// Add Calculator to the global window
+// Global Actions
+window.setResultTab = (tab) => { ResultView.activeTab = tab; ResultView.render(); };
+window.goToReviewQuestion = (idx) => { state.currentIndex = idx; ResultView.render(); };
+window.selectCourse = (id) => LandingView.handleSelect(id);
+window.startExam = () => {
+    engine.initSecurity(); // Start security FIRST
+    engine.startExam(state.selectedCourse); // Then start exam
+};
+window.navigateHome = () => { state.clearDisk(); Router.navigate('landing'); };
+window.selectOption = (idx) => ExamView.handleSelectOption(idx);
+window.toggleFlag = () => ExamView.handleToggleFlag();
+window.goToQuestion = (idx) => ExamView.handleGoTo(idx);
+window.nextQuestion = () => engine.nextQuestion();
+window.prevQuestion = () => engine.prevQuestion();
+window.submitExam = () => engine.submitExam();
 window.toggleCalc = () => Calculator.toggle();
 window.calcInput = (val) => Calculator.handleInput(val);
 
 window.addEventListener('DOMContentLoaded', () => {
-    // Inject calculator HTML into the body once
+    // 1. Inject Calculator
     const calcContainer = document.createElement('div');
     calcContainer.innerHTML = Calculator.render();
     document.body.appendChild(calcContainer);
     
-    Router.navigate('landing');
-});
-
-// Attach UI-specific actions to global window so HTML onclicks work
-window.selectCourse = (id) => LandingView.handleSelect(id);
-window.startExam = () => CourseInfoView.handleStart();
-window.navigateHome = () => Router.navigate('landing');
-window.selectOption = (idx) => ExamView.handleSelectOption(idx);
-window.toggleFlag = () => ExamView.handleToggleFlag();
-window.goToQuestion = (idx) => ExamView.handleGoTo(idx);
-
-// Expose these to the window so the HTML buttons can trigger them
-window.nextQuestion = () => engine.nextQuestion();
-window.prevQuestion = () => engine.prevQuestion();
-window.submitExam = () => engine.submitExam();
-
-// Also ensure these UI helpers are exposed for the navigation grid
-window.goToQuestion = (index) => ExamView.handleGoTo(index);
-window.toggleFlag = () => ExamView.handleToggleFlag();
-
-window.addEventListener('DOMContentLoaded', () => {
-    Router.navigate('landing');
+    // 2. Resume Session Logic
+    const hasSavedState = state.loadFromDisk();
     
+    if (hasSavedState && state.isExamActive) {
+        // RE-INITIALIZE security and timer after a refresh
+        engine.initSecurity(); 
+        engine.startTimer();
+        Router.navigate('exam');
+    } else {
+        // Standard start
+        Router.navigate('landing');
+    }
+
+    // 3. Handle Browser Back/Forward buttons
     window.onpopstate = () => {
         const hash = window.location.hash.replace('#', '') || 'landing';
-        Router.navigate(hash);
+        // Block navigation if exam is active to prevent accidental exit
+        if (state.isExamActive && hash !== 'exam') {
+            if (confirm("Leaving this page will submit your exam. Continue?")) {
+                engine.submitExam();
+            } else {
+                window.location.hash = 'exam'; // Force them back
+            }
+        } else {
+            Router.navigate(hash);
+        }
     };
 });
-
-

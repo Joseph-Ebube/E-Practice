@@ -89,19 +89,37 @@ export const engine = {
     },
 
 
+
+
     initSecurity() {
-        // This ensures the warning works even after a refresh
-        window.onblur = () => {
+        // 1. Tab Switch Detection
+        document.onvisibilitychange = () => {
+            if (document.hidden && state.isExamActive) {
+                alert("🔴 SECURITY ALERT: You left the exam tab. This incident has been recorded.");
+            }
+        };
+
+        // 2. Prevent Refresh/Close
+        window.onbeforeunload = (e) => {
             if (state.isExamActive) {
-                console.warn("Security Breach: Tab switch detected.");
-                alert("🔴 INSTITUTIONAL WARNING: You left the exam tab. This incident has been recorded.");
+                e.preventDefault();
+                e.returnValue = ''; // Standard requirement for modern browsers
             }
         };
     },
 
     stopSecurity() {
-        window.onblur = null;
+        window.onbeforeunload = null;
+        document.onvisibilitychange = null;
+    },
+
+    submitExam() {
+        if (confirm("Are you sure you want to submit?")) {
+            this.stopSecurity(); // Turn off warnings so they can navigate to results
+            clearInterval(this.timerInterval);
+            state.isExamActive = false;
+            state.clearDisk(); 
+            Router.navigate('result');
+        }
     }
-
 };
-

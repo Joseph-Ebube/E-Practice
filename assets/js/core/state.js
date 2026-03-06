@@ -1,41 +1,36 @@
 export const state = {
-    currentView: 'landing', // landing, courseInfo, exam, result
+    currentView: 'landing',
     selectedCourse: null,
     questions: [],
-    userAnswers: {}, // Format: { questionId: selectedOptionIndex }
-    flaggedQuestions: new Set(), // Track flagged IDs/indices
+    userAnswers: {},
+    flaggedQuestions: new Set(),
     currentIndex: 0,
     timeLeft: 0,
     isExamActive: false,
     
-    // Methods to update state
     setCourse(course) {
         this.selectedCourse = course;
-        this.questions = course.questions; // In real use, we'd shuffle/slice here
+        this.questions = course.questions;
         this.timeLeft = course.defaultTime * 60;
-        this.flaggedQuestions.clear(); // Reset for new exam
+        this.userAnswers = {};
+        this.currentIndex = 0;
+        this.flaggedQuestions.clear();
+        this.saveToDisk();
     },
     
     saveAnswer(questionId, answerIndex) {
         this.userAnswers[questionId] = answerIndex;
-        localStorage.setItem('cbt_progress', JSON.stringify(this.userAnswers));
+        this.saveToDisk();
     },
 
-    toggleFlag(index) {
-        if (this.flaggedQuestions.has(index)) {
-            this.flaggedQuestions.delete(index);
-        } else {
-            this.flaggedQuestions.add(index);
-        }
-    },
-
-        saveToDisk() {
+    saveToDisk() {
         const data = {
             userAnswers: this.userAnswers,
             currentIndex: this.currentIndex,
             isExamActive: this.isExamActive,
             timeLeft: this.timeLeft,
-            selectedCourseId: this.selectedCourse?.id
+            selectedCourse: this.selectedCourse,
+            questions: this.questions
         };
         localStorage.setItem('cbt_state', JSON.stringify(data));
     },
@@ -43,11 +38,14 @@ export const state = {
     loadFromDisk() {
         const saved = localStorage.getItem('cbt_state');
         if (saved) {
-            const parsed = JSON.parse(saved);
-            Object.assign(this, parsed);
+            const data = JSON.parse(saved);
+            Object.assign(this, data);
             return true;
         }
         return false;
+    },
+
+    clearDisk() {
+        localStorage.removeItem('cbt_state');
     }
 };
-

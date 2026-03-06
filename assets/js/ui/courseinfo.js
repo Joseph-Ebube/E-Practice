@@ -10,6 +10,25 @@ export const CourseInfoView = {
         root.innerHTML = `
             <div class="max-w-3xl mx-auto py-12 px-4">
                 <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden">
+                 
+    <div class="max-w-2xl mx-auto p-6">
+        <div class="bg-white rounded-lg shadow-xl border-l-8 border-[#d4af37] p-8">
+            <h2 class="text-2xl font-bold text-[#064e3b] mb-4">Examination Instructions</h2>
+            
+            <div class="bg-red-50 border border-red-200 p-4 rounded-md mb-6">
+                <h4 class="text-red-800 font-bold flex items-center gap-2 uppercase text-sm">
+                    <i class="fas fa-exclamation-triangle"></i> Security Protocol
+                </h4>
+                <ul class="text-xs text-red-700 mt-2 list-disc ml-5 space-y-1">
+                    <li>Do NOT switch tabs or minimize the browser.</li>
+                    <li>Refreshing the page will be logged as a security incident.</li>
+                    <li>The exam will auto-submit once the timer reaches 00:00.</li>
+                </ul>
+            </div>
+
+           
+        </div>
+    </div>
                     <div class="bg-[#3e7d37] p-8 text-white">
                         <button onclick="navigateHome()" class="text-sm opacity-80 hover:opacity-100 mb-4 flex items-center gap-2">
                             <i class="fas fa-arrow-left"></i> Back to Courses
@@ -43,26 +62,32 @@ export const CourseInfoView = {
                     </div>
                 </div>
             </div>
+
+            
         `;
+
+
 
         this.attachEvents();
     },
 
-    attachEvents() {
+
+attachEvents() {
         window.navigateHome = () => Router.navigate('landing');
         
         document.getElementById('start-btn').onclick = () => {
             const customQty = parseInt(document.getElementById('custom-qty').value);
             const customTime = parseInt(document.getElementById('custom-time').value);
             
-            // Slice questions based on user preference (Randomization can be added here)
             const slicedData = { 
                 ...state.selectedCourse.data,
                 defaultTime: customTime,
                 questions: state.selectedCourse.data.questions.slice(0, customQty)
             };
             
+            // CRITICAL: Initialize security BEFORE starting the exam flow
+            engine.initSecurity(); 
             engine.startExam(slicedData);
         };
     }
-};
+}

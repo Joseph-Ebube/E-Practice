@@ -2,98 +2,102 @@ import { state } from '../core/state.js';
 import { Router } from '../app/router.js';
 
 export const ResultView = {
+    activeTab: 'summary',
+
     render() {
-        const results = this.calculateResults();
         const root = document.getElementById('main-layout');
+        const stats = this.calculateStats();
 
         root.innerHTML = `
-            <div class="max-w-4xl mx-auto p-8">
-                <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-10 text-center">
-                    <h1 class="text-3xl font-bold mb-4 text-[#3e7d37]">Examination Result</h1>
-                    <div class="text-6xl font-black mb-6">${results.score}%</div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 text-left">
-                        <div class="p-4 bg-gray-50 dark:bg-slate-700 rounded">
-                            <p class="text-sm text-gray-500">Correct Answers</p>
-                            <p class="text-xl font-bold">${results.correct} / ${state.questions.length}</p>
-                        </div>
-                        <div class="p-4 bg-gray-50 dark:bg-slate-700 rounded">
-                            <p class="text-sm text-gray-500">Time Spent</p>
-                            <p class="text-xl font-bold">${results.timeUsed}</p>
-                        </div>
-                    </div>
+            <div class="flex flex-col h-screen bg-gray-100">
+                <nav class="bg-[#064e3b] text-white flex border-b border-[#d4af37]">
+                    <button onclick="window.setResultTab('summary')" class="px-8 py-3 font-bold ${this.activeTab === 'summary' ? 'bg-white text-[#064e3b]' : 'text-[#d4af37]'}">SUMMARY</button>
+                    <button onclick="window.setResultTab('correction')" class="px-8 py-3 font-bold ${this.activeTab === 'correction' ? 'bg-white text-[#064e3b]' : 'text-[#d4af37]'}">CORRECTIONS</button>
+                </nav>
+                <main class="flex-grow overflow-y-auto p-6">
+                    ${this.activeTab === 'summary' ? this.renderSummary(stats) : this.renderCorrection()}
+                </main>
+            </div>
+        `;
+    },
 
-                    <h3 class="font-bold text-lg mb-4 text-left border-b pb-2">Topic Breakdown</h3>
-                    <div class="space-y-3 mb-10">
-                        ${Object.entries(results.topics).map(([topic, data]) => `
-                            <div class="flex justify-between items-center">
-                                <span class="text-gray-600 dark:text-gray-300">${topic}</span>
-                                <div class="flex items-center gap-3">
-                                    <div class="w-32 bg-gray-200 rounded-full h-2">
-                                        <div class="bg-blue-500 h-2 rounded-full" style="width: ${(data.correct/data.total)*100}%"></div>
-                                    </div>
-                                    <span class="font-bold">${data.correct}/${data.total}</span>
-                                </div>
+    calculateStats() {
+        const total = state.questions.length;
+        let correct = 0;
+        const topics = {};
+
+        state.questions.forEach((q, i) => {
+            const isCorrect = state.userAnswers[i] === q.answer;
+            if (isCorrect) correct++;
+            if (!topics[q.topic]) topics[q.topic] = { c: 0, t: 0 };
+            topics[q.topic].t++;
+            if (isCorrect) topics[q.topic].c++;
+        });
+
+        const timeUsed = (state.selectedCourse.defaultTime * 60) - state.timeLeft;
+        return {
+            score: correct,
+            total,
+            percentage: Math.round((correct / total) * 100),
+            timeUsed: `${Math.floor(timeUsed/60)}m ${timeUsed%60}s`,
+            avgTime: (timeUsed / total).toFixed(1) + 's',
+            topics
+        };
+    },
+
+    renderSummary(s) {
+        return `
+            <div class="max-w-4xl mx-auto space-y-6">
+                <div class="bg-white p-10 rounded-xl shadow border-t-8 border-[#d4af37] text-center">
+                    <h1 class="text-5xl font-black text-[#064e3b]">${s.percentage}%</h1>
+                    <p class="text-gray-500 uppercase tracking-widest mt-2">Overall Score</p>
+                    <div class="grid grid-cols-2 gap-4 mt-8">
+                        <div class="bg-gray-50 p-4 rounded"><span>Time Spent:</span> <b class="block text-[#064e3b]">${s.timeUsed}</b></div>
+                        <div class="bg-gray-50 p-4 rounded"><span>Avg Speed:</span> <b class="block text-[#064e3b]">${s.avgTime}/q</b></div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded shadow">
+                    <h3 class="font-bold mb-4">Topic Mastery</h3>
+                    ${Object.entries(s.topics).map(([name, d]) => `
+                        <div class="mb-3">
+                            <div class="flex justify-between text-xs mb-1"><span>${name}</span><span>${Math.round(d.c/d.t*100)}%</span></div>
+                            <div class="w-full bg-gray-100 h-2 rounded-full"><div class="bg-[#d4af37] h-full" style="width:${d.c/d.t*100}%"></div></div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    },
+
+    renderCorrection() {
+        const q = state.questions[state.currentIndex];
+        const userAns = state.userAnswers[state.currentIndex];
+        const isCorrect = userAns === q.answer;
+
+        return `
+            <div class="max-w-4xl mx-auto space-y-6">
+                <div class="bg-white p-8 rounded shadow border-l-8 ${isCorrect ? 'border-green-500' : 'border-red-500'}">
+                    <p class="text-lg font-bold mb-6">${q.text}</p>
+                    <div class="space-y-3">
+                        ${q.options.map((opt, i) => `
+                            <div class="p-3 border rounded ${i === q.answer ? 'bg-green-100 border-green-500' : (i === userAns ? 'bg-red-100 border-red-500' : 'bg-gray-50')}">
+                                ${String.fromCharCode(65+i)}. ${opt}
                             </div>
                         `).join('')}
                     </div>
-
-                    <button id="home-btn" class="bg-[#3e7d37] text-white px-10 py-3 rounded-full font-bold hover:bg-[#2d5a27]">
-                        Practice Another Course
-                    </button>
+                    <div class="mt-6 p-4 bg-yellow-50 text-sm border border-yellow-200">
+                        <strong>Correction:</strong> ${q.explanation}
+                    </div>
+                </div>
+                <div class="grid grid-cols-10 border bg-white shadow">
+                    ${state.questions.map((_, i) => `
+                        <div onclick="window.goToReviewQuestion(${i})" class="h-12 border flex flex-col items-center justify-center cursor-pointer ${state.currentIndex === i ? 'bg-[#d4af37]' : ''}">
+                            <span class="text-[10px]">${i+1}</span>
+                            <span class="font-bold ${state.userAnswers[i] === state.questions[i].answer ? 'text-green-600' : 'text-red-600'}">${state.userAnswers[i] === state.questions[i].answer ? '✓' : '✗'}</span>
+                        </div>
+                    `).join('')}
                 </div>
             </div>
         `;
-
-        document.getElementById('home-btn').onclick = () => {
-            state.userAnswers = {};
-            state.currentIndex = 0;
-            Router.navigate('landing');
-        };
-    },
-
-    calculateResults() {
-        let correct = 0;
-        const topicStats = {};
-
-        state.questions.forEach((q, index) => {
-            if (!topicStats[q.topic]) topicStats[q.topic] = { correct: 0, total: 0 };
-            topicStats[q.topic].total++;
-
-            if (state.userAnswers[index] === q.answer) {
-                correct++;
-                topicStats[q.topic].correct++;
-            }
-        });
-
-        return {
-            correct,
-            score: Math.round((correct / state.questions.length) * 100),
-            topics: topicStats,
-            timeUsed: "12m 30s" // This would be calculated from state.timeLeft
-        };
-    },
-
-
-    renderReview() {
-    return state.questions.map((q, i) => {
-        const userAns = state.userAnswers[i];
-        const isCorrect = userAns === q.answer;
-        
-        return `
-            <div class="p-4 border-b ${isCorrect ? 'bg-green-50' : 'bg-red-50'}">
-                <p class="font-bold text-[#064e3b]">Q${i+1}: ${q.text}</p>
-                <p class="text-sm mt-2">
-                    Your Answer: <span class="${isCorrect ? 'text-green-700' : 'text-red-700'}">${q.options[userAns] || 'None'}</span>
-                </p>
-                ${!isCorrect ? `<p class="text-sm text-green-700 font-bold">Correct Answer: ${q.options[q.answer]}</p>` : ''}
-                
-                <div class="mt-3 p-3 bg-white border border-[#d4af37] rounded text-xs text-gray-600 italic">
-                    <strong>Explanation:</strong> ${q.explanation}
-                </div>
-            </div>
-        `;
-    }).join('');
-}
+    }
 };
-

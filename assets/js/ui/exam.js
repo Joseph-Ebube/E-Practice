@@ -71,11 +71,7 @@ export const ExamView = {
                             </button>
                         </div>
 
-                        <div class="bg-cyan-50 p-4 border-l-4 border-cyan-200 mb-10">
-                            <p class="text-gray-700 text-sm font-medium italic">
-                                ${q.topic}: Pick the most appropriate option.
-                            </p>
-                        </div>
+                
 
                         <p class="text-2xl mb-12 text-gray-800 font-medium leading-relaxed">
                             ${q.text}
